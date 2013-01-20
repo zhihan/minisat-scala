@@ -26,8 +26,5 @@ class TypeTestSuite extends FunSuite {
     val cl = new Clause(lits, false)
     assert(cl.abst == 5)  // Abstraction
 
-    cl.strengthen(Lit(a,true))
-    assert(cl.size == 1)
-    assert(cl.abst == 4)
   }
 }
