@@ -29,5 +29,16 @@ class TypeTestSuite extends FunSuite {
     cl.strengthen(Lit(a,true))
     assert(cl.size == 1)
     assert(cl.abst == 4)
+
+    val clause1 = Clause(Array(Lit(0, true)), true)
+    val clause2 = Clause(Array(Lit(0, true), Lit(1,true)), true)
+    
+    // 
+    assert(clause1.subsumes(clause1) == Lit.undef)
+    assert(clause1.subsumes(clause2) == Lit.undef)
+    assert(clause2.subsumes(clause1) == Lit.error)
+
+    val clause3 = Clause(Array(Lit(0,false), Lit(1,true)), true)
+    assert(clause1.subsumes(clause3) == Lit(0,true))
   }
 }
