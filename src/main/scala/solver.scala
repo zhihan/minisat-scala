@@ -28,6 +28,7 @@ object Solver {
 
   var progressEstimate = 0.0 // Set by search
 
+  // Constants
   val varDecay = 1/0.95
   val clauseDecay = 1/0.999
   val randomVarFreq = 0.02
@@ -46,18 +47,45 @@ object Solver {
   val clauses = ArrayBuffer[Clause]()
   val learnts = ArrayBuffer[Clause]()
 
-  // Per variable data
-  val activity = ArrayBuffer[Double]() // one per variable
-  val assigns = ArrayBuffer[LBool] () // one per variable
-  val decisionVar = ArrayBuffer[Boolean]() // 
+  // Per-variable data
+  val activity = ArrayBuffer[Double]() 
+  val assigns = ArrayBuffer[LBool] ()  // assigned value
+  val decisionVar = ArrayBuffer[Boolean]() // whether the variable is decision candidate
+  val reasons = ArrayBuffer[Option[Clause]]()
 
   // Variable ordering
   var varOrder = TreeSet[Activity]() (Ordering.by[Activity,Double](_.act))
-  def insertVarOrder(v:Var.t) {
+  private def insertVarOrder(v:Var.t) {
     val act = activity(v)
     val a = Activity(v, act)
     if (!varOrder.contains(a) && decisionVar(v)) {
       varOrder = varOrder + a // Insert
     }
+  }
+
+  def nVars = assigns.size
+
+  // Main methods
+
+  def newVar(isDecision:Boolean):Var.t =  {
+    val newV = nVars // New variable
+
+    watches.append(ArrayBuffer[Clause]()) // negative watch
+    watches.append(ArrayBuffer[Clause]()) // positive watch
+    
+    assigns.append(LBool.Unknown) 
+    activity.append(0.0) 
+    
+    reasons.append(None)  // No reason
+
+    decisionVar.append(isDecision)
+    insertVarOrder(newV)
+
+    newV
+  }
+
+  def disp = {
+    "Variables: " + nVars + "\n" +
+    "Clauses: " + clauses.size 
   }
 }
