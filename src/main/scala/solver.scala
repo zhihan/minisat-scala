@@ -4,6 +4,16 @@ import my.sat._
 
 import scala.collection.mutable.ArrayBuffer
 
+import scala.math.Ordering
+import scala.collection.immutable.TreeSet
+
+// Pair of (idx, act) sorted by activities
+case class Activity(val i:Var.t, val act:Double) 
+{}
+
+
+
+
 object Solver {
   // Constructor
   var ok = true
@@ -35,5 +45,19 @@ object Solver {
   val watches = ArrayBuffer[ArrayBuffer[Clause]]()
   val clauses = ArrayBuffer[Clause]()
   val learnts = ArrayBuffer[Clause]()
-  
+
+  // Per variable data
+  val activity = ArrayBuffer[Double]() // one per variable
+  val assigns = ArrayBuffer[LBool] () // one per variable
+  val decisionVar = ArrayBuffer[Boolean]() // 
+
+  // Variable ordering
+  var varOrder = TreeSet[Activity]() (Ordering.by[Activity,Double](_.act))
+  def insertVarOrder(v:Var.t) {
+    val act = activity(v)
+    val a = Activity(v, act)
+    if (!varOrder.contains(a) && decisionVar(v)) {
+      varOrder = varOrder + a // Insert
+    }
+  }
 }

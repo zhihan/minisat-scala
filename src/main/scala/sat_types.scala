@@ -9,6 +9,22 @@ object Var {
 
   val undef = -1
 }
+
+class LBool(val v: Byte) {
+  override def equals(other:Any) = {
+    other match {
+      case that:LBool => (v == that.v)
+      case _ => false
+    }
+  }
+}
+
+object LBool {
+  val False = new LBool(-1)
+  val True = new LBool(1)
+  val Unknown = new LBool(0)
+}
+
 /** Literal
  * A literal is either a positive or negavie apparence of a variable.
  */
