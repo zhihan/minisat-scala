@@ -17,12 +17,14 @@ class LBool(val v: Byte) {
       case _ => false
     }
   }
+  def litValue(sgn:Boolean) = if (sgn) LBool(v) else LBool((-v).toByte)
 }
 
 object LBool {
   val False = new LBool(-1)
   val True = new LBool(1)
   val Unknown = new LBool(0)
+  def apply(v:Byte) = new LBool(v)
 }
 
 /** Literal
