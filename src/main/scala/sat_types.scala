@@ -17,7 +17,13 @@ class LBool(val v: Byte) {
       case _ => false
     }
   }
-  def litValue(sgn:Boolean) = if (sgn) LBool(v) else LBool((-v).toByte)
+  def xor(sgn:Boolean) = if (sgn) LBool((-v).toByte) else LBool(v)
+  override def toString = {
+    if (v == -1) "FALSE"
+    else if (v == 1) "TRUE"
+    else if (v == 0) "UNKNOWN"
+    else "ERROR: UNKNOWN VALUE"
+  }
 }
 
 object LBool {
@@ -25,10 +31,12 @@ object LBool {
   val True = new LBool(1)
   val Unknown = new LBool(0)
   def apply(v:Byte) = new LBool(v)
+  def apply(v:Boolean) = if (v) new LBool(1) else new LBool(-1)
 }
 
 /** Literal
- * A literal is either a positive or negavie apparence of a variable.
+ * A literal is either a variable (unsigned) or its negation (signed).
+ * 
  */
 final class Lit(v:Var.t, sgn:Boolean) {
   val x = if (sgn) v + v + 1 else v + v 
@@ -41,6 +49,10 @@ final class Lit(v:Var.t, sgn:Boolean) {
       case that:Lit => (x == that.x)
       case _ => false
     }
+  }
+  override def toString = {
+    if (sign) "!L(" + v.toString + ")" 
+    else "L(" + v.toString + ")"
   }
 }
 

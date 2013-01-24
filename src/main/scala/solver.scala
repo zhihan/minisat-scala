@@ -12,9 +12,7 @@ case class Activity(val i:Var.t, val act:Double)
 {}
 
 
-
-
-object Solver {
+class Solver {
   // Constructor
   var ok = true
 
@@ -62,19 +60,19 @@ object Solver {
   // Index into trail to indicate levels
   val trailLim = ArrayBuffer[Int]() 
   
-  private def newDecisionLevel { trailLim.append(trail.size) }
-  private def decisionLevel = trailLim.size 
+   def newDecisionLevel { trailLim.append(trail.size) }
+   def decisionLevel = trailLim.size 
 
   // Getting values of variable, literal and clause
-  private def value(v:Var.t):LBool = assigns(v)
-  private def value(l:Lit):LBool = value(l.toInt).litValue(l.sign)
+   def value(v:Var.t):LBool = assigns(v)
+   def value(l:Lit):LBool = value(l.variable).xor(l.sign)
 
-  private def satisfied(c:Clause):Boolean = 
+   def satisfied(c:Clause):Boolean = 
     c.lit.exists(l => value(l) == LBool.True )
 
   // Variable ordering
   var varOrder = TreeSet[Activity]() (Ordering.by[Activity,Double](_.act))
-  private def insertVarOrder(v:Var.t) {
+   def insertVarOrder(v:Var.t) {
     val act = activity(v)
     val a = Activity(v, act)
     if (!varOrder.contains(a) && decisionVar(v)) {
@@ -109,7 +107,7 @@ object Solver {
     "Clauses: " + clauses.size 
   }
 
-  private def watchClause(c: Clause) {
+   def watchClause(c: Clause) {
     assert(c.size > 1)
 
     // A clause is always watched by negations of the first two literals
@@ -119,27 +117,27 @@ object Solver {
     watches((Lit.not(c(1))).toInt).append(c)
   }
 
-  private def unwatchClause(c:Clause) {
+   def unwatchClause(c:Clause) {
     assert(c.size > 1)
     watches((Lit.not(c(0))).toInt) -= c
     watches((Lit.not(c(1))).toInt) -= c
   }
 
 
-  private def isLocked(c:Clause):Boolean = {
+   def isLocked(c:Clause):Boolean = {
     // A clause is locked if its first literal is true
     // and the clause is used as a reason for this variable. 
     (reasons(c(0).variable) == c) && (value(c(0)) == LBool.True)
   }
 
-  private def removeClause(c:Clause) {
+   def removeClause(c:Clause) {
     if (!c.learnt) {
       unwatchClause(c)
     }
   }
 
   // Cancel the assignments above or equal to trailLim(level)
-  private def cancelUntil(level:Int) {
+   def cancelUntil(level:Int) {
     if (decisionLevel > level) {
       // Cancel all assignments on the trail
       for (c <- trail.size-1 to trailLim(level) by -1) {
@@ -152,6 +150,36 @@ object Solver {
       trailLim.remove(level, decisionLevel - level)
      }
   }
-  
+
+   def uncheckedEnqueue(p: Lit, from:Option[Clause]) {
+    // assign variable to negation of Lit from and enqueue
+    // Assume the value is unknown
+    assert(value(p) == LBool.Unknown)
+    assigns(p.variable) = LBool(!p.sign)
+    level(p.variable) = decisionLevel
+    reasons(p.variable) = from
+    trail.append(p)
+  }
+
+  /* Enqueue a literal and return whether the solver is valid*/
+  def enqueue(p: Lit, from:Option[Clause]):Boolean = {
+    if (value(p) == LBool.Unknown) {
+      uncheckedEnqueue(p, from)
+      true
+    } else {
+      value(p) != LBool.False
+    }
+  }
+
+
+  def propagate() {
+    val confl = None
+    while (qhead < trail.size ) {
+      var p = trail(qhead)
+      qhead += 1 
+      val ws = watches(p.toInt)
+    }
+   
+  }
 
 }

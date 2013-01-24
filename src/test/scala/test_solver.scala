@@ -6,8 +6,18 @@ import org.scalatest.FunSuite
 
 class SolverTestSuite extends FunSuite {
   test("Init") {
-    val a = Solver.newVar(true)
-    val b = Solver.newVar(false)
-    assert(Solver.nVars == 2)
+    val s = new Solver()
+    val a = s.newVar(true)
+    val b = s.newVar(false)
+    assert(s.nVars == 2)
+  }
+
+  test("Enqueue") {
+    val s = new Solver()
+    val a = s.newVar(true)
+    val la = Lit(a, false)
+    s.enqueue(la, None)
+    assert(s.value(la) == LBool.True)
+    assert(s.value(a) == LBool.True)
   }
 }
