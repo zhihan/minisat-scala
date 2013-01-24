@@ -97,6 +97,9 @@ class Clause(lits: Array[Lit],
 
   // Get the i-th literal 
   def apply(i:Int) = lit(i)
+  def update(i:Int, l:Lit) = {
+    lit(i) = l
+  }
   def indexOf(l: Lit) = lit.indexOf(l)
   def remove(l: Lit) {
     val i = indexOf(l)

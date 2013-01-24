@@ -107,7 +107,7 @@ class Solver {
     "Clauses: " + clauses.size 
   }
 
-   def watchClause(c: Clause) {
+  def watchClause(c: Clause) {
     assert(c.size > 1)
 
     // A clause is always watched by negations of the first two literals
@@ -117,7 +117,7 @@ class Solver {
     watches((Lit.not(c(1))).toInt).append(c)
   }
 
-   def unwatchClause(c:Clause) {
+  def unwatchClause(c:Clause) {
     assert(c.size > 1)
     watches((Lit.not(c(0))).toInt) -= c
     watches((Lit.not(c(1))).toInt) -= c
@@ -151,7 +151,7 @@ class Solver {
      }
   }
 
-   def uncheckedEnqueue(p: Lit, from:Option[Clause]) {
+  def uncheckedEnqueue(p: Lit, from:Option[Clause]) {
     // assign variable to negation of Lit from and enqueue
     // Assume the value is unknown
     assert(value(p) == LBool.Unknown)
@@ -170,16 +170,76 @@ class Solver {
       value(p) != LBool.False
     }
   }
+  
+  private def findNewWatch(clause:Clause) = {
+    val falseLit = clause(1)
+    // Try to locate a new watch
+    var newWatchFound = false
+    var k = 2
+    while (k < clause.size && !newWatchFound) {
+      if (value(clause(k)) != LBool.False) {
+	// Swap c(1) with c(k)
+	newWatchFound = true
+	clause(1) = clause(k)
+	clause(k) = falseLit
+      } else {
+	k+=1
+      }
+    }
+    newWatchFound
+  }
 
+  private def moveFirstLiteral(clause:Clause, p:Lit){
+    val falseLit = Lit.not(p)
+    // Move literals so false lit is in [1]
+    if (clause(0) == falseLit ) {
+      clause(0) = clause(1)
+      clause(1) = falseLit
+    }
+    assert(clause(1) == falseLit)
+  }
 
-  def propagate() {
-    val confl = None
+  def propagate() = {
+    var confl:Option[Clause] = None
     while (qhead < trail.size ) {
       var p = trail(qhead)
       qhead += 1 
       val ws = watches(p.toInt)
-    }
-   
-  }
 
+      val keepWatch = ArrayBuffer[Clause]()
+
+      for (i <- 0 until ws.size ) {
+	val clause = ws(i)
+	if (!confl.isEmpty) {
+	  moveFirstLiteral(clause, p)
+
+	  val first = clause(0)
+	  if (value(first) == LBool.True) {
+	    // Already satisfied, nothing to do
+	    keepWatch.append(clause)
+	  } else {
+	    val newWatchFound = findNewWatch(clause)
+	    if (!newWatchFound) {
+	      // Keep watching the clause
+	      keepWatch.append(clause)
+	      if (value(first) == LBool.False) {
+		// conflict
+		confl = Some(clause)
+		qhead = trail.size
+	      } else {
+		uncheckedEnqueue(first, Some(clause))
+	      }
+	    }
+	  }
+	} else {
+	  // Already in conflict, keep remaining watches
+	  keepWatch.append(clause)
+	}
+      }
+    }
+    confl
+  }
+  
+  def addClause(ps:List[Lit]) = {
+  }
 }
