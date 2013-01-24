@@ -6,6 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import scala.math.Ordering
 import scala.collection.immutable.TreeSet
+import scala.util.Sorting 
 
 // Pair of (idx, act) sorted by activities
 case class Activity(val i:Var.t, val act:Double) 
@@ -151,7 +152,7 @@ class Solver {
      }
   }
 
-  def uncheckedEnqueue(p: Lit, from:Option[Clause]) {
+  private def uncheckedEnqueue(p: Lit, from:Option[Clause]) {
     // assign variable to negation of Lit from and enqueue
     // Assume the value is unknown
     assert(value(p) == LBool.Unknown)
@@ -210,7 +211,7 @@ class Solver {
 
       for (i <- 0 until ws.size ) {
 	val clause = ws(i)
-	if (!confl.isEmpty) {
+	if (confl.isEmpty) {
 	  moveFirstLiteral(clause, p)
 
 	  val first = clause(0)
@@ -222,6 +223,7 @@ class Solver {
 	    if (!newWatchFound) {
 	      // Keep watching the clause
 	      keepWatch.append(clause)
+              
 	      if (value(first) == LBool.False) {
 		// conflict
 		confl = Some(clause)
@@ -236,10 +238,79 @@ class Solver {
 	  keepWatch.append(clause)
 	}
       }
+      watches(p.toInt) = keepWatch
     }
     confl
   }
+
+  private def cleanupClause(ps:Array[Lit]) = {
+    /* Remove redundancy in the literals
+     *   1) False literals are removed
+     *   2) Repeated entries are removed
+     *   Return true if tautology
+     *          false if invalid;
+     *          otherwise unknown
+     */ 
+    
+    if (ps.exists(x => value(x) == LBool.True)) {
+      (Array[Lit](), LBool.True)
+    } else {
+      // Sort literals by their indices
+      Sorting.quickSort(ps) (Ordering.by[Lit,Int](_.toInt))
+      
+      // Scan literals
+      // remove redundancy and discover contradiction
+      val keepLits = ArrayBuffer[Lit]()
+      var lastLit = Lit.undef
+      var isTautology = false // p || ~p is considered tautology
+      for (i <- 0 until ps.size ) {
+        if (!isTautology) {
+          if (ps(i) == Lit.not(lastLit)) {
+            isTautology = true
+          } else if (ps(i) != lastLit && value(ps(i)) != LBool.False ) {
+            keepLits.append(ps(i))
+            lastLit = ps(i)
+          } 
+        }
+      }
+      // Return arguments
+      if (isTautology) {
+        (Array[Lit](), LBool.True)
+      } else if (keepLits.isEmpty) {
+        (Array[Lit](), LBool.False)
+      } else {
+        (keepLits.toArray, LBool.Unknown)
+      }
+    }
+  }
   
-  def addClause(ps:List[Lit]) = {
+  def addClause(ps:Array[Lit]) = {
+    // Add a clause to the solver 
+    // return true if no conflict, false if conflict.
+    assert (decisionLevel == 0)
+    if (!ok) {
+      false
+    } else {
+      val (lits, status) = cleanupClause(ps)
+      if (status == LBool.True) {
+        true
+      } else if (status == LBool.False) {
+        false
+      } else {
+        // Only process unknown clauses
+        if (lits.size == 1) {
+          // Unit clause
+          assert(value(lits(0)) == LBool.Unknown)
+          uncheckedEnqueue(lits(0), None)
+          val confl = propagate()
+          confl.isEmpty
+        } else {
+          val clause = Clause(lits, false)
+          clauses.append(clause)
+          watchClause(clause)
+          true
+        }
+      }
+    }
   }
 }

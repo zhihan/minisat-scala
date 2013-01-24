@@ -94,6 +94,7 @@ class Clause(lits: Array[Lit],
   }
 
   def size = lit.length
+  override def toString = "[" + lit.map(_.toString).mkString(";") + "]"
 
   // Get the i-th literal 
   def apply(i:Int) = lit(i)
