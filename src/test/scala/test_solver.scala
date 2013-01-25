@@ -112,8 +112,10 @@ class SolverTestSuite extends FunSuite {
     s.enqueue(Lit(d, false), None)
     val confl = s.propagate()
 
-    val res = s.analyze(confl)
+    val (res,btlevel) = s.analyze(confl)
     assert(res.size == 3)
+    assert(btlevel == 2)
     //println(res)
+
   }
 }

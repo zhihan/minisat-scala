@@ -8,6 +8,7 @@ import scala.math.Ordering
 import scala.collection.immutable.TreeSet
 import scala.util.Sorting 
 import scala.collection.mutable.Set
+import scala.collection.mutable.Stack
 
 // Pair of (idx, act) sorted by activities
 case class Activity(val i:Var.t, val act:Double) 
@@ -53,6 +54,9 @@ class Solver {
   val decisionVar = ArrayBuffer[Boolean]() // whether the variable is decision candidate
   val reasons = ArrayBuffer[Option[Clause]]()
   val level = ArrayBuffer[Int]()
+  def abstractLevel(v:Var.t) = { // Abstraction of the levels
+    1 << (level(v) & 31)
+  }
 
   // Assignments that forms a "trail"
   // level 0: [ l0 l1 ... l(trail_lim(0) -1) 
@@ -362,10 +366,90 @@ class Solver {
     }
     // When stop, thisLit is an UIP
     learnt(0) = Lit.not(thisLit)
-    learnt
-
     // Here, seen contains all active literals except intermediate
     // literals. The UIP is not in the seen list.
+
+    /* Only implement the 'expensive' alternative of clause minimization */
     
+    val abstractLevels = computeAbstractLevels(learnt)
+    
+    val minLearnt = ArrayBuffer[Lit](learnt(0)) // Initialize the UIP
+    for ( i<- 1 until learnt.size) {  // Skip UIP
+      val l = learnt(i)
+      reasons(l.variable) match {
+        case None => minLearnt.append(l) // No reason, decision literals
+        case Some(r) => 
+          // Has reason, need to check its reasons
+          if (!litRedundant(l, abstractLevels, seen)) {
+            minLearnt.append(l)
+          }
+      }
+                  }
+    val btLevel = computeBTLevel(minLearnt)
+    (minLearnt, btLevel)
+  }
+
+  def computeAbstractLevels(ls:ArrayBuffer[Lit]) = {
+    var levels = 0
+    for( i <- 1 until ls.size) {
+      val l = ls(i)
+      val lv = abstractLevel(l.variable)
+      levels = levels | lv          
+    }
+    levels
+  }
+
+  /* Minimization of conflict clause using self subsumption
+   *
+   * See "MiniSAT - A SAT solver with conflict clause minimization" SAT 2005 
+   * */
+  def litRedundant(p:Lit, abstractLevels: Int, seen:Set[Var.t]) = {
+    val analyzeStack = Stack[Lit](p)
+    val lseen = Set[Var.t]() ++ seen // Local set of seen literals
+    var isRedundant = true // Assume
+    while (!analyzeStack.isEmpty && isRedundant) { // DFS
+      val q = analyzeStack.pop
+      assert(!reasons(p.variable).isEmpty)
+      val reason = reasons(p.variable).get 
+      for (i <- 1 until reason.size 
+           if isRedundant ) { // Skipping the asserting literal
+        val p = reason(i) 
+        // If any literals in the reason is not found in the original
+        // clause (seen), the literal is not redundant.
+        val px = p.variable
+        if (!lseen.contains(px) && level(px) >0) {
+          // new reason
+          if ( !reasons(px).isEmpty && ((abstractLevel(px) & abstractLevels)!=0)) {
+            lseen += px // px is seen in this function 
+            analyzeStack.push(p) // Need to investigate p
+          } else {
+            // the new reason is either at a different level or
+            // a decision variable
+            isRedundant  = false
+          }
+        } // If this is an old reason or assumption, goto next reason
+      }
+    }
+    isRedundant
+  }
+
+  def computeBTLevel(learnt:ArrayBuffer[Lit]) = {
+    // learnt will be altered in this function since it is mutable
+    if (learnt.size == 1) {
+      0
+    } else {
+      var maxI = 1
+      for (i <- 2 until learnt.size) {
+        if (level(learnt(i).variable) > level(learnt(maxI).variable)) {
+          maxI = i
+        }
+      }
+      // Move the literal with max level to the first variable so it will
+      // be used to watch the conflict clause
+      val p = learnt(maxI)
+      learnt(maxI) = learnt(1)
+      learnt(1) = p
+      level(p.variable)
+    }
   }
 }
