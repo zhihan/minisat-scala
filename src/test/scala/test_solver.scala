@@ -84,5 +84,36 @@ class SolverTestSuite extends FunSuite {
     val r2 = s.addClause(Array(Lit(a, true), Lit(b, false))) // a -> b
     val r = s.addClause(Array(Lit(a, false))) // a
     assert(r == false)
-  }  
+  }
+
+  test("Conflict resolution") {
+    val s = new Solver()
+    val a = s.newVar(true)
+    val b = s.newVar(true)
+    val c = s.newVar(true)
+    val d = s.newVar(true)
+    val e = s.newVar(true)
+    val f = s.newVar(true)
+    s.addClause(Array(Lit(a,true), Lit(d,true), Lit(b,false)))
+    s.addClause(Array(Lit(d,true), Lit(f,true), Lit(e,false)))
+    s.addClause(Array(Lit(b,true), Lit(e,true), Lit(c,false)))
+    s.addClause(Array(Lit(c,true)))
+    
+    // enter decision
+    s.newDecisionLevel
+    s.enqueue(Lit(a, false), None)
+    s.propagate
+
+    s.newDecisionLevel
+    s.enqueue(Lit(f, false), None)
+    s.propagate
+
+    s.newDecisionLevel
+    s.enqueue(Lit(d, false), None)
+    val confl = s.propagate()
+
+    val res = s.analyze(confl)
+    assert(res.size == 3)
+    //println(res)
+  }
 }

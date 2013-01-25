@@ -7,6 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.math.Ordering
 import scala.collection.immutable.TreeSet
 import scala.util.Sorting 
+import scala.collection.mutable.Set
 
 // Pair of (idx, act) sorted by activities
 case class Activity(val i:Var.t, val act:Double) 
@@ -183,6 +184,9 @@ class Solver {
 	newWatchFound = true
 	clause(1) = clause(k)
 	clause(k) = falseLit
+	
+	val lit = Lit.not(clause(1))
+	watches(lit.toInt).append(clause)
       } else {
 	k+=1
       }
@@ -312,5 +316,53 @@ class Solver {
         }
       }
     }
+  }
+  
+  def analyze(confl:Option[Clause]) = {
+    var pathCount = 0
+    var thisLit = Lit.undef
+    
+    val learnt = ArrayBuffer(thisLit) // leave room for first
+    var idx = trail.size - 1 
+    // "seen" serves as a work-list
+    // When a non-terminal node is found, it is put in the list
+    // when it is processed it is removed from the list. The visit
+    // follows reverse topological order. 
+    val seen = Set[Var.t]()
+
+    var clause:Option[Clause] = confl
+
+    while (thisLit == Lit.undef || // initial 
+	   pathCount >0 ) {
+      // bump activity XXX
+      assert(!clause.isEmpty)
+      val c = clause.get
+      val firstLitIdx = if (thisLit==Lit.undef) 0 else 1
+      for (j <- firstLitIdx until c.size) {
+	val q = c(j)
+	val v = q.variable
+	if (!seen.contains(v) && level(v) >0) {
+	  // bump activity
+	  seen += v
+	  if (level(v) >= decisionLevel) {
+	    // Increase path count
+	    pathCount += 1
+	  } else {
+	    learnt.append(q)
+	  }
+	}
+      }
+      while(!seen.contains(trail(idx).variable)) {
+	// follow the trail until find an seen variable
+	idx -= 1
+      }
+      thisLit = trail(idx)
+      clause = reasons(thisLit.variable)
+      seen.remove(thisLit.variable)
+      pathCount -= 1
+    }
+    // When stop, thisLit is an UIP
+    learnt(0) = Lit.not(thisLit)
+    learnt
   }
 }
