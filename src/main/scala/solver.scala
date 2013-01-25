@@ -325,9 +325,6 @@ class Solver {
     val learnt = ArrayBuffer(thisLit) // leave room for first
     var idx = trail.size - 1 
     // "seen" serves as a work-list
-    // When a non-terminal node is found, it is put in the list
-    // when it is processed it is removed from the list. The visit
-    // follows reverse topological order. 
     val seen = Set[Var.t]()
 
     var clause:Option[Clause] = confl
@@ -358,11 +355,17 @@ class Solver {
       }
       thisLit = trail(idx)
       clause = reasons(thisLit.variable)
+      // When looking at reasons of this literal, it is removed
+      // from the worklist
       seen.remove(thisLit.variable)
       pathCount -= 1
     }
     // When stop, thisLit is an UIP
     learnt(0) = Lit.not(thisLit)
     learnt
+
+    // Here, seen contains all active literals except intermediate
+    // literals. The UIP is not in the seen list.
+    
   }
 }
