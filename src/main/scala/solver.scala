@@ -53,8 +53,6 @@ class Solver {
 
   var progressEstimate = 0.0 // Set by search
 
-  val trace = false
-
   // Constants
   val varDecay = 1/0.95
   val clauseDecay = 1/0.999
@@ -263,9 +261,6 @@ class Solver {
 		confl = Some(clause)
 		qhead = trail.size
 	      } else {
-		if (trace) {
-		  println("Set:" + first + " due to " +clause)
-		}
 		uncheckedEnqueue(first, Some(clause))
 	      }
 	    }
@@ -402,9 +397,8 @@ class Solver {
     /* Only implement the 'expensive' alternative of clause minimization */
     
     val abstractLevels = computeAbstractLevels(learnt)
-    if (trace) {
-      println("Before minimize:" + learnt)
-    }
+    // println("Before minimize:" + learnt)
+
    val minLearnt = ArrayBuffer[Lit](learnt(0)) // Initialize the UIP
     for ( i<- 1 until learnt.size) {  // Skip UIP
       val l = learnt(i)
@@ -417,11 +411,9 @@ class Solver {
           }
       }
                   }
-    val btLevel = computeBTLevel(learnt)
-    if (trace) { 
-      println("Minimize:" + minLearnt)
-    }
-    (learnt, btLevel)
+    val btLevel = computeBTLevel(minLearnt)
+    // println("Minimize:" + minLearnt)
+    (minLearnt, btLevel)
   }
 
   def computeAbstractLevels(ls:ArrayBuffer[Lit]) = {
@@ -444,8 +436,13 @@ class Solver {
     var isRedundant = true // Assume
     while (!analyzeStack.isEmpty && isRedundant) { // DFS
       val q = analyzeStack.pop
-      assert(!reasons(p.variable).isEmpty)
-      val reason = reasons(p.variable).get 
+      assert(!reasons(q.variable).isEmpty)
+      
+      val reason = reasons(q.variable).get 
+      
+      //println(reason + "=>" + q)
+      //println("Seen:" + lseen)
+      
       for (i <- 1 until reason.size 
            if isRedundant ) { // Skipping the asserting literal
         val p = reason(i) 
@@ -456,10 +453,12 @@ class Solver {
           // new reason
           if ( !reasons(px).isEmpty && ((abstractLevel(px) & abstractLevels)!=0)) {
             lseen += px // px is seen in this function 
+	    // println("Need to investigate:" + p)
             analyzeStack.push(p) // Need to investigate p
           } else {
             // the new reason is either at a different level or
             // a decision variable
+	    // println(p + " is not redundant")
             isRedundant  = false
           }
         } // If this is an old reason or assumption, goto next reason
@@ -540,10 +539,6 @@ class Solver {
       val confl = propagate
       if (!confl.isEmpty) {
 	// A conflict is found
-	if (trace) {
-	  println("Trail:" + trail)
-	  println("CONFLICT: "+ confl.get)
-	}
 	if (decisionLevel == 0) {
 	  // Stop here because it has conflict at level 0
 	  stop = true // break
@@ -554,9 +549,7 @@ class Solver {
 	  conflictCount += 1
 	
 	  val (learnt, btLevel) = analyze(confl)
-	  if (trace) {
-	    println("Backtrack to " + btLevel)
-	  }
+
 	  cancelUntil(btLevel)
 	  assert(value(learnt(0)) == LBool.Unknown)
 	  
@@ -567,25 +560,18 @@ class Solver {
 	    val c = Clause(learnt.toArray, true)
 	    watchClause(c)
 	    // bump activity
-	    if (trace) {
-	      println("Resetting " + learnt(0) + " at " + decisionLevel)
-	    }
 	    uncheckedEnqueue(learnt(0), Some(c))
 	  }
 	}
 	// bump activitiy
       } else {
 	// No conflict
-	if (trace) {
-	  println("Decision level:" + decisionLevel)
-	  println("Trail:" + trail)
-	}
 	if (conflictCount > nConflicts) {
 	  stop = true
 	  result = LBool.Unknown
 	} else {
 	  // (XXX) simplify mode
-	  val next = pickBranchLit(Polarity.True, randomVarFreq)
+	  val next = pickBranchLit(Polarity.Rand, randomVarFreq)
 	  if (next == Lit.undef) {
 	    stop = true
 	    result = LBool.True
@@ -593,10 +579,6 @@ class Solver {
 	    // continue
 	    assert(value(next) == LBool.Unknown)
 	    newDecisionLevel
-	    if (trace) {
-	      println("Enter decision level " + decisionLevel)
-	      println("Setting " + next + " at " + decisionLevel)
-	    }
 	    uncheckedEnqueue(next, None) // Decision
 	  }
 	}
