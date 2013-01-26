@@ -9,16 +9,40 @@ import scala.collection.immutable.TreeSet
 import scala.util.Sorting 
 import scala.collection.mutable.Set
 import scala.collection.mutable.Stack
+import scala.util.Random
 
 // Pair of (idx, act) sorted by activities
-case class Activity(val i:Var.t, val act:Double) 
+case class Activity(val variable:Var.t, val act:Double) 
 {}
 
+// Companion object for activity
+object Activity{
+  implicit val ord = new Ordering[Activity] {
+    def compare(a:Activity, b:Activity) = {
+      if ((a.act compare b.act) != 0) {
+	a.act compare b.act
+      } else {
+	// activity equal, use var to break the tie
+	a.variable compare b.variable
+      }
+    }
+  }
+}
+
+
+
+
+object Polarity{
+  // Polarity mode for picking new branch
+  abstract class Mode
+  case object True extends Mode {}
+  case object False extends Mode {}
+  case object Rand extends Mode {}
+}
 
 class Solver {
   // Constructor
   var ok = true
-
   var qhead = 0 // Index into trail to indicate head of queue
   
   // Number of top-level assigns since last call to simplify
@@ -29,10 +53,12 @@ class Solver {
 
   var progressEstimate = 0.0 // Set by search
 
+  val trace = false
+
   // Constants
   val varDecay = 1/0.95
   val clauseDecay = 1/0.999
-  val randomVarFreq = 0.02
+  val randomVarFreq = 0.00
   val restartFirst = 100
   val restartInc = 1.5
   val learntSizeFactor = 1.0/3.0
@@ -77,7 +103,7 @@ class Solver {
     c.lit.exists(l => value(l) == LBool.True )
 
   // Variable ordering
-  var varOrder = TreeSet[Activity]() (Ordering.by[Activity,Double](_.act))
+  var varOrder = TreeSet[Activity]()
    def insertVarOrder(v:Var.t) {
     val act = activity(v)
     val a = Activity(v, act)
@@ -237,6 +263,9 @@ class Solver {
 		confl = Some(clause)
 		qhead = trail.size
 	      } else {
+		if (trace) {
+		  println("Set:" + first + " due to " +clause)
+		}
 		uncheckedEnqueue(first, Some(clause))
 	      }
 	    }
@@ -353,6 +382,7 @@ class Solver {
 	  }
 	}
       }
+
       while(!seen.contains(trail(idx).variable)) {
 	// follow the trail until find an seen variable
 	idx -= 1
@@ -372,8 +402,10 @@ class Solver {
     /* Only implement the 'expensive' alternative of clause minimization */
     
     val abstractLevels = computeAbstractLevels(learnt)
-    
-    val minLearnt = ArrayBuffer[Lit](learnt(0)) // Initialize the UIP
+    if (trace) {
+      println("Before minimize:" + learnt)
+    }
+   val minLearnt = ArrayBuffer[Lit](learnt(0)) // Initialize the UIP
     for ( i<- 1 until learnt.size) {  // Skip UIP
       val l = learnt(i)
       reasons(l.variable) match {
@@ -385,8 +417,11 @@ class Solver {
           }
       }
                   }
-    val btLevel = computeBTLevel(minLearnt)
-    (minLearnt, btLevel)
+    val btLevel = computeBTLevel(learnt)
+    if (trace) { 
+      println("Minimize:" + minLearnt)
+    }
+    (learnt, btLevel)
   }
 
   def computeAbstractLevels(ls:ArrayBuffer[Lit]) = {
@@ -451,5 +486,122 @@ class Solver {
       learnt(1) = p
       level(p.variable)
     }
+  }
+
+  def pickBranchLit(pm: Polarity.Mode, randomFreq:Double):Lit = {
+    var next = Var.undef
+    // Randomly pick a variable as a starting point
+    if (Random.nextDouble < randomFreq && !varOrder.isEmpty){
+      val nextIdx = Random.nextInt(varOrder.size)
+      val vars = varOrder.toArray
+      val act = vars(nextIdx)
+      next = act.variable 
+    }
+    // Follow activity ordering to find undefined variable
+    var stop = false
+    while ( ((next == Var.undef) ||
+	     (assigns(next) != LBool.Unknown) || 
+	     !decisionVar(next)) &&
+	   !stop
+	 ) 
+    {
+      if (varOrder.isEmpty) {
+	stop = true // break;
+	next = Var.undef
+      } else {
+	// Remove min
+	val act = varOrder.min 
+	next = act.variable
+	varOrder = varOrder - act
+      }
+    }
+    val sgn = pm match {
+      case Polarity.True => false
+      case Polarity.False => true
+      case Polarity.Rand => Random.nextBoolean
+    }
+    
+    if (next == Var.undef) {
+      Lit.undef
+    } else {
+      Lit(next, sgn)
+    }
+  }
+
+  def search(nConflicts:Int, nLearnts:Int):LBool = {
+    assert(ok)
+    
+    var conflictCount = 0
+    var first = true
+    var stop = false
+    var result = LBool.Unknown
+
+    while (!stop) {
+      val confl = propagate
+      if (!confl.isEmpty) {
+	// A conflict is found
+	if (trace) {
+	  println("Trail:" + trail)
+	  println("CONFLICT: "+ confl.get)
+	}
+	if (decisionLevel == 0) {
+	  // Stop here because it has conflict at level 0
+	  stop = true // break
+	  result = LBool.False
+	} else {
+	  // Resolve conflict
+	  first = false
+	  conflictCount += 1
+	
+	  val (learnt, btLevel) = analyze(confl)
+	  if (trace) {
+	    println("Backtrack to " + btLevel)
+	  }
+	  cancelUntil(btLevel)
+	  assert(value(learnt(0)) == LBool.Unknown)
+	  
+	  if (learnt.size == 1) {
+	    // Asserting clause
+	    uncheckedEnqueue(learnt(0), None)
+	  } else {
+	    val c = Clause(learnt.toArray, true)
+	    watchClause(c)
+	    // bump activity
+	    if (trace) {
+	      println("Resetting " + learnt(0) + " at " + decisionLevel)
+	    }
+	    uncheckedEnqueue(learnt(0), Some(c))
+	  }
+	}
+	// bump activitiy
+      } else {
+	// No conflict
+	if (trace) {
+	  println("Decision level:" + decisionLevel)
+	  println("Trail:" + trail)
+	}
+	if (conflictCount > nConflicts) {
+	  stop = true
+	  result = LBool.Unknown
+	} else {
+	  // (XXX) simplify mode
+	  val next = pickBranchLit(Polarity.True, randomVarFreq)
+	  if (next == Lit.undef) {
+	    stop = true
+	    result = LBool.True
+	  } else {
+	    // continue
+	    assert(value(next) == LBool.Unknown)
+	    newDecisionLevel
+	    if (trace) {
+	      println("Enter decision level " + decisionLevel)
+	      println("Setting " + next + " at " + decisionLevel)
+	    }
+	    uncheckedEnqueue(next, None) // Decision
+	  }
+	}
+      }
+    }
+    result
   }
 }

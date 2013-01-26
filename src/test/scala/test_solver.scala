@@ -118,4 +118,15 @@ class SolverTestSuite extends FunSuite {
     //println(res)
 
   }
+  test("Pick branch") {
+    val s = new Solver()
+    val a = s.newVar(true)
+    val b = s.newVar(false)
+    val c = s.newVar(true)
+    
+    val la = s.pickBranchLit(Polarity.True, 0.0)
+    assert(la == Lit(a,false))
+    val lc = s.pickBranchLit(Polarity.False, 0.0)
+    assert(lc == Lit(c, true))
+  }
 }
