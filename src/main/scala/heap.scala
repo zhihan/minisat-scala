@@ -15,12 +15,13 @@ class MutableBinaryMinHeap(val comp:(Int,Int)=>Int) {
   private def left(heapIdx:Int) = heapIdx*2 + 1
   private def right(heapIdx:Int) = heapIdx*2 + 2
   private def parent(heapIdx:Int) = (heapIdx-1) >> 1
-
+  
 
   private def lt(i:Int, j:Int) = comp(i,j) < 0
   def size = heap.size
   def isEmpty = heap.isEmpty
-  
+  def apply(heapIdx:Int) = heap(heapIdx)
+
   def inHeap(i: Int) = (i < indices.size) && (indices(i) >= 0)  
   private def decrease(i:Int) = percolateUp(indices(i))
   private def increase(i:Int) = percolateDown(indices(i))
@@ -93,7 +94,7 @@ class MutableBinaryMinHeap(val comp:(Int,Int)=>Int) {
     heap.clear
   }
   
-  def removeMin() = {
+  def removeMin = {
     // Remove x 
     val x = heap(0)
     indices(x) = -1 

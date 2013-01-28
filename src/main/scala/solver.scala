@@ -11,26 +11,6 @@ import scala.collection.mutable.Set
 import scala.collection.mutable.Stack
 import scala.util.Random
 
-// Pair of (idx, act) sorted by activities
-case class Activity(val variable:Var.t, val act:Double) 
-{}
-
-// Companion object for activity
-object Activity{
-  implicit val ord = new Ordering[Activity] {
-    def compare(a:Activity, b:Activity) = {
-      if ((a.act compare b.act) != 0) {
-	a.act compare b.act
-      } else {
-	// activity equal, use var to break the tie
-	a.variable compare b.variable
-      }
-    }
-  }
-}
-
-
-
 
 object Polarity{
   // Polarity mode for picking new branch
@@ -100,13 +80,23 @@ class Solver {
    def satisfied(c:Clause):Boolean = 
     c.lit.exists(l => value(l) == LBool.True )
 
+  // Compare function for activity based on variable index
+  def activityOrder(a:Var.t, b:Var.t):Int = {
+    if (activity(a) <  activity(b)) {
+      -1
+    } else if (activity(a) > activity(b)) {
+      1
+    } else {
+      0
+    }
+  }
+
   // Variable ordering
-  var varOrder = TreeSet[Activity]()
-   def insertVarOrder(v:Var.t) {
-    val act = activity(v)
-    val a = Activity(v, act)
-    if (!varOrder.contains(a) && decisionVar(v)) {
-      varOrder = varOrder + a // Insert
+  var varOrder = new MutableBinaryMinHeap(activityOrder)
+
+  def insertVarOrder(v:Var.t) {
+    if (!varOrder.inHeap(v) && decisionVar(v)) {
+      varOrder.insert(v)
     }
   }
 
@@ -492,9 +482,7 @@ class Solver {
     // Randomly pick a variable as a starting point
     if (Random.nextDouble < randomFreq && !varOrder.isEmpty){
       val nextIdx = Random.nextInt(varOrder.size)
-      val vars = varOrder.toArray
-      val act = vars(nextIdx)
-      next = act.variable 
+      next = varOrder(nextIdx)
     }
     // Follow activity ordering to find undefined variable
     var stop = false
@@ -509,9 +497,7 @@ class Solver {
 	next = Var.undef
       } else {
 	// Remove min
-	val act = varOrder.min 
-	next = act.variable
-	varOrder = varOrder - act
+	next = varOrder.removeMin
       }
     }
     val sgn = pm match {
