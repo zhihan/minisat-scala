@@ -12,20 +12,20 @@ class MutableBinaryMinHeap(val comp:(Int,Int)=>Int) {
   val indices = ArrayBuffer[Int]()  // indices(heap(i)) == i
   
   // Heap indices must be prefixed by 'heap'
-  def left(heapIdx:Int) = heapIdx*2 + 1
-  def right(heapIdx:Int) = heapIdx*2 + 2
-  def parent(heapIdx:Int) = (heapIdx-1) >> 1
+  private def left(heapIdx:Int) = heapIdx*2 + 1
+  private def right(heapIdx:Int) = heapIdx*2 + 2
+  private def parent(heapIdx:Int) = (heapIdx-1) >> 1
 
 
-  def lt(i:Int, j:Int) = comp(i,j) < 0
+  private def lt(i:Int, j:Int) = comp(i,j) < 0
   def size = heap.size
   def isEmpty = heap.isEmpty
   
   def inHeap(i: Int) = (i < indices.size) && (indices(i) >= 0)  
-  def decrease(i:Int) = percolateUp(indices(i))
-  def increase(i:Int) = percolateDown(indices(i))
+  private def decrease(i:Int) = percolateUp(indices(i))
+  private def increase(i:Int) = percolateDown(indices(i))
 
-  def percolateUp(heapIdx:Int) {
+  private def percolateUp(heapIdx:Int) {
     var x = heap(heapIdx)
     var hI = heapIdx
     while (hI != 0 && lt(x, heap(parent(hI)))) {
@@ -38,7 +38,7 @@ class MutableBinaryMinHeap(val comp:(Int,Int)=>Int) {
     indices(x) = hI
   }
   
-  def percolateDown(heapIdx:Int) {
+  private def percolateDown(heapIdx:Int) {
     var x = heap(heapIdx)
     var hI = heapIdx
     var stop = false
