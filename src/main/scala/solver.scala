@@ -64,6 +64,7 @@ class Solver {
   val learntSizeFactor = 1.0/3.0
   val learntSizeInc = 1.1
 
+
   var clauseInc = 1.0
   def claDecayActivity {
     clauseInc *= clauseDecay
@@ -388,6 +389,10 @@ class Solver {
 	   pathCount >0 ) {
        assert(!clause.isEmpty)
       val c = clause.get
+      if (c.learnt) {
+        claBumpActivity(c)
+      }
+
       val firstLitIdx = if (thisLit==Lit.undef) 0 else 1
       for (j <- firstLitIdx until c.size) {
 	val q = c(j)
@@ -584,10 +589,13 @@ class Solver {
             learnts.append(c)
 	    watchClause(c)
 	    // bump activity
+            claBumpActivity(c)
 	    uncheckedEnqueue(learnt(0), Some(c))
 	  }
 	}
-	// bump activitiy
+        varDecayActivity;
+        claDecayActivity
+        
       } else {
 	// No conflict
 	if (conflictCount > nConflicts) {
@@ -595,6 +603,10 @@ class Solver {
 	  result = LBool.Unknown
 	} else {
 	  // (XXX) simplify mode
+          if (nLearnts>=0 && (learnts.size - trail.size >= nLearnts) ) {
+            reduceDB
+          }
+
 	  val next = pickBranchLit(Polarity.Rand, randomVarFreq)
 	  if (next == Lit.undef) {
 	    stop = true
@@ -609,5 +621,35 @@ class Solver {
       }
     }
     result
+  }
+
+  def reduceDB {
+    val extraLim = clauseInc / learnts.size
+    val learntClauses = learnts.toArray
+    
+    Sorting.quickSort(learntClauses) (Clause.ActivityOrdering)
+
+    val toRemove = ArrayBuffer[Clause]()
+    for (i <- 1 until learntClauses.size/2 ) {
+      // Remove mostly first half
+      val c = learntClauses(i)
+      if ((c.size > 2) && !isLocked(c)) {
+        toRemove.append(c)
+      }
+    }
+
+    for (i <- learntClauses.size/2 until learntClauses.size ) {
+      val c = learntClauses(i)
+      if ((c.size > 2) && (c.activity < extraLim) && !isLocked(c)) {
+        toRemove.append(c)
+      }
+    }
+
+    toRemove.foreach{ c =>
+      unwatchClause(c)
+      learnts -= c // Remove from learnt
+                   }
+    
+                     
   }
 }

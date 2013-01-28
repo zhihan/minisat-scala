@@ -2,6 +2,8 @@ package my.sat
 
 /** Essential solver types */
 
+import scala.math.Ordering
+
 object Var {
   type t = Int
   def toInt(v:t) = v
@@ -149,4 +151,26 @@ class Clause(lits: Array[Lit],
 object Clause {
   def apply(lits: Array[Lit], learnt:Boolean) =
     new Clause(lits, learnt)
+
+  // Compare clauses based on size and activity
+  object ActivityOrdering extends Ordering[Clause] {
+    def compare(x:Clause, y:Clause):Int = {
+      if (x.size <= 2 && y.size > 2) {
+        // binary clause is always more active than any larger clauses
+        1 
+      } else if (x.size<= 2 && y.size <= 2) {
+        // Both binary 
+        0
+      } else {
+        // Both x and y are regular clauses compare activity
+        if (x.activity < y.activity) {
+          -1 
+        } else if (x.activity > y.activity) {
+          1
+        } else {
+          0
+        }
+      }
+    }
+  }
 }

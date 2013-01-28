@@ -27,7 +27,7 @@ for i=1:n
     end
 end
 
-t = s.search(1000, 1000);
+t = s.search(1000, 60);
 if strcmp(char(t.toString), 'FALSE')
     sat = false;
 elseif strcmp(char(t.toString), 'TRUE')
