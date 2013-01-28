@@ -5,7 +5,6 @@ import my.sat._
 import scala.collection.mutable.ArrayBuffer
 
 import scala.math.Ordering
-import scala.collection.immutable.TreeSet
 import scala.util.Sorting 
 import scala.collection.mutable.Set
 import scala.collection.mutable.Stack
@@ -35,16 +34,51 @@ class Solver {
 
   // Constants
   val varDecay = 1/0.95
+  var varInc = 1.0
+
+  // Decay is supposed to decay all variable activities, instead
+  // here the amount of the next bump is increased.
+  def varDecayActivity {
+    varInc = varInc * varDecay
+  }
+
+  def varBumpActivity(v: Var.t) {
+    activity(v) += varInc
+    if (activity(v) > 1e100) {
+      // Rescale
+      for (i <- 0 until activity.size){
+        activity(i) *= 1e-100
+      }
+      varInc *= 1e-100
+    }
+    if (varOrder.inHeap(v)) {
+      varOrder.update(v)
+    }
+  }
+
   val clauseDecay = 1/0.999
   val randomVarFreq = 0.00
   val restartFirst = 100
   val restartInc = 1.5
+
   val learntSizeFactor = 1.0/3.0
   val learntSizeInc = 1.1
-  
-  val clauseInc = 1
-  val varInc = 1
 
+  var clauseInc = 1.0
+  def claDecayActivity {
+    clauseInc *= clauseDecay
+  }
+
+  def claBumpActivity(c:Clause) {
+    c.activity += clauseInc
+    if (c.activity > 1e20) {
+      // Rescale
+      learnts.foreach{ c =>
+        c.activity = c.activity*1e-20
+                    }
+    }
+  }
+  
   // Mutable members
 
   // watches maps a literal to a list of clauses
@@ -81,10 +115,13 @@ class Solver {
     c.lit.exists(l => value(l) == LBool.True )
 
   // Compare function for activity based on variable index
+  // In MiniSAT this is implemented by reversing the order of
+  // activitity so that the varible the max activity is sorted
+  // as the min in the heap.
   def activityOrder(a:Var.t, b:Var.t):Int = {
-    if (activity(a) <  activity(b)) {
+    if (activity(a) >  activity(b)) {
       -1
-    } else if (activity(a) > activity(b)) {
+    } else if (activity(a) < activity(b)) {
       1
     } else {
       0
@@ -349,8 +386,7 @@ class Solver {
 
     while (thisLit == Lit.undef || // initial 
 	   pathCount >0 ) {
-      // bump activity XXX
-      assert(!clause.isEmpty)
+       assert(!clause.isEmpty)
       val c = clause.get
       val firstLitIdx = if (thisLit==Lit.undef) 0 else 1
       for (j <- firstLitIdx until c.size) {
@@ -358,6 +394,7 @@ class Solver {
 	val v = q.variable
 	if (!seen.contains(v) && level(v) >0) {
 	  // bump activity
+          varBumpActivity(v)
 	  seen += v
 	  if (level(v) >= decisionLevel) {
 	    // Increase path count
@@ -544,6 +581,7 @@ class Solver {
 	    uncheckedEnqueue(learnt(0), None)
 	  } else {
 	    val c = Clause(learnt.toArray, true)
+            learnts.append(c)
 	    watchClause(c)
 	    // bump activity
 	    uncheckedEnqueue(learnt(0), Some(c))

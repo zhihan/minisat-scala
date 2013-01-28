@@ -1,6 +1,6 @@
 name := "scala-minisat"
 
-version := "0.0"
+version := "0.1"
 
 resolvers += "Sonatype Releases" at "http://oss.sonatype.org/content/repositories/releases"
 

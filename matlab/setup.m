@@ -16,4 +16,4 @@ switch deblank(name)
         error('Don''t know what to do yet')
 end
 
-javaaddpath(fullfile(pwd, 'scala-minisat_2.9.2-0.0.jar'));
+javaaddpath(fullfile(pwd, 'scala-minisat_2.9.2-0.1.jar'));
