@@ -185,7 +185,10 @@ class Solver {
    def isLocked(c:Clause):Boolean = {
     // A clause is locked if its first literal is true
     // and the clause is used as a reason for this variable. 
-    (reasons(c(0).variable) == c) && (value(c(0)) == LBool.True)
+     reasons(c(0).variable) match {
+       case Some(r) => (r == c) && (value(c(0)) == LBool.True)
+       case None => false
+     }
   }
 
    def removeClause(c:Clause) {
