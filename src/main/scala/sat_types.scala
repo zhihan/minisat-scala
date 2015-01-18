@@ -1,4 +1,4 @@
-package my.sat
+package me.zhihan.sat
 
 /** Essential solver types */
 

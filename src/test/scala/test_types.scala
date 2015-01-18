@@ -1,6 +1,5 @@
-package test.sat
+package me.zhihan.sat
 
-import my.sat._
 import scala.util.Sorting
 import org.scalatest.FunSuite 
 

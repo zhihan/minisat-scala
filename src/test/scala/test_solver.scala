@@ -1,6 +1,4 @@
-package test.sat
-
-import my.sat._
+package me.zhihan.sat
 
 import org.scalatest.FunSuite 
 

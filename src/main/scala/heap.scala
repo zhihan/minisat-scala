@@ -1,4 +1,4 @@
-package my.sat
+package me.zhihan.sat
 
 import scala.collection.mutable.ArrayBuffer
 
