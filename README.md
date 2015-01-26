@@ -1,5 +1,7 @@
 minisat-scala
 =========
+[![Build Status](https://travis-ci.org/zhihan/minisat-scala.svg?branch=master)](https://travis-ci.org/zhihan/minisat-scala)
+
 This is a pure scala implementation of the MiniSAT SATisfiability solver.
 It is based on the original clean version of MiniSAT, which is a very
 powerful SAT solver written in less than 1000 lines of C++ code.
